@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Universal Hacker Cipher Interface</title>
+<style>
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: linear-gradient(135deg, #000000, #0f0f0f);
+    color: #00ffcc;
+    font-family: 'Courier New', monospace;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: repeating-linear-gradient(180deg, rgba(0, 255, 204, 0.05), rgba(0, 255, 204, 0.05) 1px, transparent 1px, transparent 4px);
+    pointer-events: none;
+    z-index: 1;
+    animation: matrixPulse 1.2s infinite alternate;
+  }
+  @keyframes matrixPulse {
+    from { opacity: 0.15; }
+    to { opacity: 0.3; }
+  }
+  textarea, select, button, input {
+    width: 90%;
+    max-width: 800px;
+    margin: 10px 0;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    background: #1a1a1a;
+    color: #00ffcc;
+    box-shadow: 0 0 10px #00ffcc33;
+    position: relative;
+    z-index: 2;
+  }
+  textarea {
+    height: 140px;
+    resize: vertical;
+  }
+  button {
+    background: #00ffcc;
+    color: #0f0f0f;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button:hover {
+    background: #00ccaa;
+  }
+  #output, #originalOutput {
+    background: #1a1a1a;
+    padding: 20px;
+    width: 90%;
+    max-width: 800px;
+    border-radius: 8px;
+    min-height: 100px;
+    white-space: pre-wrap;
+    box-shadow: 0 0 10px #00ffcc33;
+    margin-top: 10px;
+    position: relative;
+    z-index: 2;
+    user-select: text; /* Allow text selection */
+  }
+  .hidden {
+    display: none;
+  }
+  #copyBtn {
+    width: auto;
+    margin-top: 5px;
+    padding: 8px 16px;
+    font-weight: normal;
+  }
+</style>
+</head>
+<body>
+
+<h2>💻 Universal Cipher Interface</h2>
+
+<!-- Encrypted clue to the password -->
+<div style="margin-bottom: 10px; font-style: italic; font-size: 1em; color: #00ffaa;">
+  Clue: @13#01@20#18@09#24 (Hint: decrypt this message to find the unlock code)
+</div>
+
+<input type="password" id="passcode" placeholder="Enter decrypted passcode to unlock...">
+<button onclick="checkAccess()">Unlock</button>
+
+<div id="cipherUI" class="hidden">
+  <select id="langSelect">
+    <option value="latin">Latin (English)</option>
+    <option value="arabic">Arabic</option>
+    <option value="cyrillic">Cyrillic (Russian)</option>
+    <option value="greek">Greek</option>
+    <option value="hebrew">Hebrew</option>
+    <option value="devanagari">Devanagari (Hindi)</option>
+    <option value="french">French</option>
+    <option value="spanish">Spanish</option>
+  </select>
+
+  <textarea id="inputText" placeholder="Enter your secret message..." oninput="encrypt(true)"></textarea>
+
+  <button onclick="encrypt(false)">Encrypt</button>
+  <button onclick="decrypt()">Decrypt</button>
+  <button onclick="downloadEncrypted()">Download Encrypted</button>
+  <button id="copyBtn" onclick="copyText()">Copy Output</button>
+  <button onclick="toggleVisibility()">Toggle View</button>
+
+  <p>🔢 Characters Encrypted: <span id="charCount">0</span></p>
+
+  <div id="output"></div>
+  <div id="originalOutput" class="hidden"></div>
+</div>
+
+<audio id="typeSound" src="https://www.myinstants.com/media/sounds/keyboard.mp3" preload="auto"></audio>
+
+<script>
+const alphabets = {
+  latin: 'abcdefghijklmnopqrstuvwxyz'.split(''),
+  arabic: 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي'.split(''),
+  cyrillic: 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'.split(''),
+  greek: 'αβγδεζηθικλμνξοπρστυφχψω'.split(''),
+  hebrew: 'אבגדהוזחטיכלמנסעפצקרשת'.split(''),
+  devanagari: 'अआइईउऊऋएऐओऔकखगघङचछजझञटठडढणतथदधनपफबभमयरलवशषसह'.split(''),
+  french: 'abcdefghijklmnopqrstuvwxyz'.split(''),  // Same as latin for simplicity
+  spanish: 'abcdefghijklmnñopqrstuvwxyz'.split('')
+};
+
+const encryptedHint = "@13#01@20#18@09#24";
+const correctPass = "it's just live"; // هنا تعيين كلمة المرور التي تريدها
+
+function checkAccess() {
+  const input = document.getElementById("passcode").value.toLowerCase();
+  if (input === correctPass) {
+    document.getElementById("cipherUI").classList.remove("hidden");
+    document.getElementById("passcode").style.display = "none";
+    document.querySelector("button").style.display = "none";
+  } else {
+    alert("Access denied. Decrypt the clue message first.");
+  }
+}
+
+function letterToCode(ch, lang) {
+  const lower = ch.toLowerCase();
+  const alpha = alphabets[lang] || alphabets['latin'];
+  const index = alpha.indexOf(lower);
+  if (index === -1) return ch;
+  const caseTag = (ch === lower) ? '#' : '@';
+  return `${caseTag}${String(index + 1).padStart(2, '0')}`;
+}
+
+function codeToLetter(code, lang) {
+  const alpha = alphabets[lang] || alphabets['latin'];
+  const type = code[0];
+  const index = parseInt(code.slice(1)) - 1;
+  const letter = alpha[index] || '?';
+  return type === '@' ? letter.toUpperCase() : letter.toLowerCase();
+}
+
+function digitToLetter(digit, lang) {
+  const alpha = alphabets[lang] || alphabets['latin'];
+  const index = parseInt(digit);
+  return alpha[index % alpha.length];
+}
+
+function letterToDigit(ch, lang) {
+  const alpha = alphabets[lang] || alphabets['latin'];
+  const index = alpha.indexOf(ch);
+  return index >= 0 && index < 10 ? index.toString() : ch;
+}
+
+function encrypt(live = false) {
+  const text = document.getElementById('inputText').value;
+  const lang = document.getElementById('langSelect').value;
+  let result = '';
+  let count = 0;
+  for (let ch of text) {
+    if (alphabets[lang].includes(ch.toLowerCase())) {
+      result += letterToCode(ch, lang);
+      count++;
+    } else if (/\d/.test(ch)) {
+      result += digitToLetter(ch, lang);
+      count++;
+    } else {
+      result += ch;
+    }
+  }
+  document.getElementById('output').textContent = result;
+  document.getElementById('originalOutput').textContent = text;
+  document.getElementById('charCount').textContent = count;
+
+  if (live) document.getElementById('typeSound').play();
+}
+
+function decrypt() {
+  const text = document.getElementById('inputText').value;
+  const lang = document.getElementById('langSelect').value;
+  let result = '';
+  let i = 0;
+  while (i < text.length) {
+    const char = text[i];
+    if (char === '@' || char === '#') {
+      result += codeToLetter(text.slice(i, i + 3), lang);
+      i += 3;
+    } else if (alphabets[lang].includes(char)) {
+      result += letterToDigit(char, lang);
+      i++;
+    } else {
+      result += char;
+      i++;
+    }
+  }
+  document.getElementById('output').textContent = result;
+  document.getElementById('originalOutput').textContent = text;
+}
+
+function downloadEncrypted() {
+  const blob = new Blob([document.getElementById('output').textContent], {type: 'text/plain'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'encrypted_message.txt';
+  link.click();
+}
+
+function toggleVisibility() {
+  document.getElementById('output').classList.toggle('hidden');
+  document.getElementById('originalOutput').classList.toggle('hidden');
+}
+
+function copyText() {
+  const text = document.getElementById('output').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Text copied to clipboard!');
+  }).catch(() => {
+    alert('Failed to copy text.');
+  });
+}
+</script>
+
+</body>
+</html>
